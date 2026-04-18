@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Connexion{% endblock %} | Digital Service Desk — BH Bank</title>
+  <link rel="icon" href="{{ url_for('static', filename='bh.png') }}" type="image/png">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='bh.png') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Source+Serif+4:opsz,wght@8..60,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  {% block extrahead %}{% endblock %}
+</head>
+<body class="page-auth">
+  {% include 'partials/flash.html' %}
+  {% block content %}{% endblock %}
+</body>
+</html>

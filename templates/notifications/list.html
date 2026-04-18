@@ -1,0 +1,26 @@
+{% extends "layout/base_app.html" %}
+{% block title %}Notifications{% endblock %}
+{% block heading %}Centre de notifications{% endblock %}
+{% block content %}
+<div class="card">
+  <ul class="notif-list">
+    {% for n in items %}
+    <li class="notif-item {% if not n.lue %}unread{% endif %}">
+      <div>
+        <div class="notif-title">{{ n.titre or n.type_notif.value }}</div>
+        <div class="notif-msg">{{ n.message }}</div>
+        <div class="notif-date muted">{{ n.date_creation.strftime('%d/%m/%Y %H:%M') }}</div>
+      </div>
+      {% if not n.lue %}
+      <form method="post" action="{{ url_for('notifications.marquer_lue', nid=n.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <button type="submit" class="btn btn-ghost btn-sm">Marquer lu</button>
+      </form>
+      {% endif %}
+    </li>
+    {% else %}
+    <li class="empty">Aucune notification.</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}

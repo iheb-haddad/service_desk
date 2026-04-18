@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Service Desk — BH Bank</title>
+  <link rel="icon" href="{{ url_for('static', filename='bh.png') }}" type="image/png">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='bh.png') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Source+Serif+4:opsz,wght@8..60,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body class="app-body" data-notif-cursor="{{ notif_cursor_id }}" data-notif-poll-url="{{ url_for('notifications.api_nouvelles') }}" data-notif-count-url="{{ url_for('notifications.count_non_lues') }}">
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <span class="sidebar-logo">BH</span>
+        <div>
+          <div class="sidebar-title">Service Desk</div>
+          <div class="sidebar-sub">Banque de l’Habitat</div>
+        </div>
+      </div>
+      {% set ep = request.endpoint %}
+      <nav class="sidebar-nav">
+        {% if current_user.role.value == 'admin' %}
+        <a class="nav-item {% if ep == 'admin.dashboard' %}active{% endif %}" href="{{ url_for('admin.dashboard') }}">Tableau de bord</a>
+        <a class="nav-item {% if ep in ('admin.liste_tickets', 'admin.detail_ticket') %}active{% endif %}" href="{{ url_for('admin.liste_tickets') }}">Tous les tickets</a>
+        <a class="nav-item {% if ep in ('admin.utilisateurs', 'admin.nouvel_utilisateur', 'admin.toggle_utilisateur') %}active{% endif %}" href="{{ url_for('admin.utilisateurs') }}">Utilisateurs</a>
+        {% elif current_user.role.value == 'agent_it' %}
+        <a class="nav-item {% if ep in ('agent.dashboard', 'agent.detail_ticket', 'agent.ajouter_commentaire', 'agent.changer_statut') %}active{% endif %}" href="{{ url_for('agent.dashboard') }}">Mes tickets assignés</a>
+        {% else %}
+        <a class="nav-item {% if ep in ('employe.dashboard', 'employe.detail_ticket', 'employe.ajouter_commentaire', 'employe.satisfaction') %}active{% endif %}" href="{{ url_for('employe.dashboard') }}">Mes demandes</a>
+        <a class="nav-item {% if ep == 'employe.nouveau_ticket' %}active{% endif %}" href="{{ url_for('employe.nouveau_ticket') }}">Nouveau ticket</a>
+        {% endif %}
+        <a class="nav-item {% if ep in ('notifications.liste', 'notifications.marquer_lue') %}active{% endif %}" href="{{ url_for('notifications.liste') }}">Notifications <span id="sidebar-notif-wrap">{% if notif_count() %}<span class="pill" id="sidebar-notif-pill">{{ notif_count() }}</span>{% endif %}</span></a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-chip">
+          <span class="user-avatar">{{ current_user.prenom[0] }}{{ current_user.nom[0] }}</span>
+          <div>
+            <div class="user-name">{{ current_user.full_name }}</div>
+            <div class="user-role">{{ current_user.role.value.replace('_',' ') }}</div>
+          </div>
+        </div>
+        <a class="logout-link" href="{{ url_for('auth.logout') }}">Déconnexion</a>
+      </div>
+    </aside>
+    <div class="main-area">
+      <header class="topbar">
+        <h1 class="page-heading">{% block heading %}{% endblock %}</h1>
+        <div class="topbar-meta">
+          <span class="env-badge">Digital Service Desk</span>
+        </div>
+      </header>
+      <main class="content">
+        {% include 'partials/flash.html' %}
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+  <div id="toast-root" class="toast-root" aria-live="polite" aria-atomic="false"></div>
+  <script src="{{ url_for('static', filename='js/realtime-notifications.js') }}" defer></script>
+</body>
+</html>

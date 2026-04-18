@@ -1,0 +1,104 @@
+{% extends "layout/base_app.html" %}
+{% from "_macros.html" import badge_statut, badge_priorite %}
+{% block title %}{{ ticket.titre }}{% endblock %}
+{% block heading %}Ticket {{ ticket.public_id[:8] }}{% endblock %}
+{% block content %}
+<div class="detail-grid">
+  <section class="card">
+    <div class="detail-head">
+      <h2>{{ ticket.titre }}</h2>
+      <div class="detail-badges">{{ badge_priorite(ticket.priorite) }} {{ badge_statut(ticket) }}</div>
+    </div>
+    <p class="meta-line">
+      <span>Catégorie : <strong>{{ ticket.category.nom }}</strong></span>
+      <span>Urgence : <strong>{{ ticket.urgence.value }}</strong></span>
+      <span>SLA cible : <strong>{{ ticket.date_echeance_sla.strftime('%d/%m/%Y %H:%M') if ticket.date_echeance_sla else '—' }}</strong></span>
+    </p>
+    {% if ticket.escalade_declenchee %}
+    <div class="banner banner-warn">Ce ticket a été <strong>escaladé</strong> suite au dépassement du délai de traitement.</div>
+    {% endif %}
+    <div class="prose pre-wrap">{{ ticket.description }}</div>
+    {% if ticket.assignee %}
+    <p class="meta-line">Agent IT : <strong>{{ ticket.assignee.full_name }}</strong></p>
+    {% endif %}
+
+    {% if ticket.pieces_jointes %}
+    <h3>Pièces jointes</h3>
+    <ul class="link-list">
+      {% for pj in ticket.pieces_jointes %}
+      <li><a href="{{ url_for('attachments.telecharger', attachment_id=pj.id) }}">{{ pj.nom_fichier }}</a></li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <h3>Commentaires</h3>
+    <div class="comments">
+      {% for c in ticket.commentaires %}
+      <div class="comment">
+        <div class="comment-meta">{{ c.auteur.full_name }} · {{ c.date_creation.strftime('%d/%m/%Y %H:%M') }}</div>
+        <div>{{ c.contenu }}</div>
+      </div>
+      {% else %}
+      <p class="muted">Aucun commentaire pour l’instant.</p>
+      {% endfor %}
+    </div>
+    <form method="post" action="{{ url_for('employe.ajouter_commentaire', public_id=ticket.public_id) }}" class="stack-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+      <textarea name="contenu" rows="3" placeholder="Ajouter un commentaire…"></textarea>
+      <button type="submit" class="btn btn-secondary">Publier</button>
+    </form>
+  </section>
+
+  {% if ticket.statut.code.value == 'resolu' and not ticket.satisfaction %}
+  <section class="card card-accent">
+    <h3>Clôture & satisfaction</h3>
+    <p class="muted">Le traitement est terminé. Merci d’évaluer le service pour clôturer définitivement le ticket.</p>
+    <form method="post" action="{{ url_for('employe.satisfaction', public_id=ticket.public_id) }}" class="stack-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+      <label class="field">
+        <span>Note (1 à 5)</span>
+        <select name="score" required>
+          <option value="">—</option>
+          {% for i in range(1,6) %}
+          <option value="{{ i }}">{{ i }} — {% if i <= 2 %}Insuffisant{% elif i == 3 %}Moyen{% elif i == 4 %}Bon{% else %}Excellent{% endif %}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="field">
+        <span>Commentaire (optionnel)</span>
+        <textarea name="commentaire" rows="2" placeholder="Retour sur la qualité du service…"></textarea>
+      </label>
+      <button type="submit" class="btn btn-primary">Valider et clôturer</button>
+    </form>
+  </section>
+  {% elif ticket.satisfaction %}
+  <section class="card">
+    <h3>Votre évaluation</h3>
+    <p>Note : <strong>{{ ticket.satisfaction.score }}/5</strong></p>
+    {% if ticket.satisfaction.commentaire %}<p>{{ ticket.satisfaction.commentaire }}</p>{% endif %}
+  </section>
+  {% endif %}
+
+  <section class="card">
+    <h3>Historique</h3>
+    <ul class="timeline">
+      {% for h in historique %}
+      <li>
+        <span class="t-date">{{ h.date_action.strftime('%d/%m %H:%M') }}</span>
+        <span class="t-action">{{ h.action }}</span>
+        {% if h.ancienne_valeur or h.nouvelle_valeur %}
+        <span class="t-meta">{{ h.ancienne_valeur }} → {{ h.nouvelle_valeur }}</span>
+        {% endif %}
+      </li>
+      {% else %}
+      <li class="muted">Pas encore d’historique.</li>
+      {% endfor %}
+    </ul>
+  </section>
+</div>
+<div class="toolbar">
+  <a class="btn btn-ghost" href="{{ url_for('employe.dashboard') }}">← Retour à la liste</a>
+</div>
+{% endblock %}

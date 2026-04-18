@@ -1,0 +1,52 @@
+{% extends "layout/base_app.html" %}
+{% block title %}Nouveau ticket{% endblock %}
+{% block heading %}Créer une demande{% endblock %}
+{% block content %}
+<div class="grid-2">
+  <form class="card form-card" method="post" action="{{ url_for('employe.nouveau_ticket') }}" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+    <label class="field">
+      <span>Titre de la demande</span>
+      <input type="text" name="titre" required maxlength="255" placeholder="Ex. Impossible d’accéder à l’application de crédit">
+    </label>
+    <label class="field">
+      <span>Description détaillée</span>
+      <textarea name="description" rows="6" required placeholder="Contexte, messages d’erreur, étapes pour reproduire…"></textarea>
+    </label>
+    <div class="field-row">
+      <label class="field">
+        <span>Catégorie</span>
+        <select name="category_id" required>
+          <option value="">— Choisir —</option>
+          {% for c in categories %}
+          <option value="{{ c.id }}">{{ c.nom }} (SLA {{ c.delai_sla_heures }} h)</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="field">
+        <span>Urgence perçue</span>
+        <select name="urgence">
+          {% for u in urgences %}
+          <option value="{{ u.value }}" {% if u.value == 'moyenne' %}selected{% endif %}>{{ u.value }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+    <label class="field">
+      <span>Pièces jointes (optionnel)</span>
+      <input type="file" name="pieces_jointes" multiple>
+      <small class="hint">PDF, images, Office — max 8 Mo par requête (formats autorisés dans la politique IT).</small>
+    </label>
+    <button type="submit" class="btn btn-primary">Envoyer la demande</button>
+  </form>
+  <aside class="card aside-card">
+    <h3>Règles de priorisation</h3>
+    <p class="muted">La priorité affichée est calculée automatiquement à partir de votre niveau d’urgence et de la catégorie métier (poids banque + SLA).</p>
+    <ul class="check-list">
+      <li>Délai de traitement cible selon la catégorie</li>
+      <li>Escalade automatique si le délai est dépassé</li>
+      <li>Notifications à chaque changement d’état</li>
+    </ul>
+  </aside>
+</div>
+{% endblock %}

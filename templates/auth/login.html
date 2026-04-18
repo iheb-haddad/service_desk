@@ -1,0 +1,57 @@
+{% extends "layout/base_min.html" %}
+{% block title %}Connexion{% endblock %}
+{% block content %}
+<div class="auth-page">
+  <div class="auth-page__bg" aria-hidden="true"></div>
+  <div class="auth-page__inner">
+    <div class="auth-card">
+      <header class="auth-card__header">
+        <img
+          src="{{ url_for('static', filename='bh.png') }}"
+          alt="BH Bank"
+          class="auth-card__logo"
+          width="100"
+          loading="eager"
+        >
+        <p class="auth-card__eyebrow">Espace sécurisé</p>
+        <h1 class="auth-card__title">Service Desk</h1>
+        <p class="auth-card__tagline">Banque de l’Habitat — Tunisie</p>
+      </header>
+
+      <div class="auth-card__divider" role="presentation"></div>
+
+      <form method="post" action="{{ url_for('auth.login') }}" class="auth-card__form" autocomplete="on">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <label class="auth-field">
+          <span class="auth-field__label">Adresse e-mail</span>
+          <input
+            type="email"
+            name="email"
+            autocomplete="username"
+            required
+            placeholder="prenom.nom@bh.tn"
+            class="auth-field__input"
+          >
+        </label>
+        <label class="auth-field">
+          <span class="auth-field__label">Mot de passe</span>
+          <input
+            type="password"
+            name="password"
+            autocomplete="current-password"
+            required
+            placeholder="••••••••"
+            class="auth-field__input"
+          >
+        </label>
+        <button type="submit" class="auth-submit">Se connecter</button>
+      </form>
+
+      <footer class="auth-card__footer">
+        <span class="auth-card__lock" aria-hidden="true">Connexion chiffrée</span>
+        <p class="auth-card__legal">© 2026 BH Bank — usage interne</p>
+      </footer>
+    </div>
+  </div>
+</div>
+{% endblock %}

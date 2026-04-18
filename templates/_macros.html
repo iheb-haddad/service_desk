@@ -1,0 +1,7 @@
+{% macro badge_statut(ticket) %}
+  <span class="badge badge-st-{{ ticket.statut.code.value }}">{{ ticket.statut.libelle }}</span>
+{% endmacro %}
+
+{% macro badge_priorite(p) %}
+  <span class="badge badge-pr-{{ p.value }}">{{ p.value }}</span>
+{% endmacro %}

@@ -1,0 +1,24 @@
+{% extends "layout/base_app.html" %}
+{% block title %}Nouvel utilisateur{% endblock %}
+{% block heading %}Créer un compte{% endblock %}
+{% block content %}
+<form class="card form-card narrow" method="post" action="{{ url_for('admin.nouvel_utilisateur') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+  <div class="field-row">
+    <label class="field"><span>Prénom</span><input type="text" name="prenom" required></label>
+    <label class="field"><span>Nom</span><input type="text" name="nom" required></label>
+  </div>
+  <label class="field"><span>E-mail</span><input type="email" name="email" required></label>
+  <label class="field"><span>Mot de passe initial</span><input type="password" name="password" required minlength="6"></label>
+  <label class="field"><span>Rôle</span>
+    <select name="role" required>
+      {% for r in roles %}
+      <option value="{{ r.value }}">{{ r.value }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label class="field"><span>Département</span><input type="text" name="departement" placeholder="Optionnel"></label>
+  <label class="field"><span>Téléphone</span><input type="text" name="telephone" placeholder="Optionnel"></label>
+  <button type="submit" class="btn btn-primary">Créer</button>
+</form>
+{% endblock %}

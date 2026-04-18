@@ -1,0 +1,72 @@
+{% extends "layout/base_app.html" %}
+{% from "_macros.html" import badge_statut, badge_priorite %}
+{% block title %}{{ ticket.titre }}{% endblock %}
+{% block heading %}Admin — ticket {{ ticket.public_id[:8] }}{% endblock %}
+{% block content %}
+<div class="detail-grid">
+  <section class="card">
+    <div class="detail-head">
+      <h2>{{ ticket.titre }}</h2>
+      <div>{{ badge_priorite(ticket.priorite) }} {{ badge_statut(ticket) }}</div>
+    </div>
+    <p class="meta-line">{{ ticket.demandeur.full_name }} · {{ ticket.demandeur.email }} · {{ ticket.category.nom }}</p>
+    <div class="prose pre-wrap">{{ ticket.description }}</div>
+    {% if ticket.pieces_jointes %}
+    <h3>Fichiers</h3>
+    <ul class="link-list">
+      {% for pj in ticket.pieces_jointes %}
+      <li><a href="{{ url_for('attachments.telecharger', attachment_id=pj.id) }}">{{ pj.nom_fichier }}</a></li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <h3>Assignation</h3>
+    <form method="post" class="stack-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+      <input type="hidden" name="action" value="assigner"/>
+      <label class="field">
+        <span>Agent IT</span>
+        <select name="agent_id">
+          <option value="">— Non assigné —</option>
+          {% for a in agents %}
+          <option value="{{ a.id }}" {% if ticket.assignee_id == a.id %}selected{% endif %}>{{ a.full_name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <button type="submit" class="btn btn-primary">Enregistrer l’assignation</button>
+    </form>
+  </section>
+
+  <section class="card">
+    <h3>Statut (contrôle complet)</h3>
+    <form method="post" class="inline-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+      <input type="hidden" name="action" value="statut"/>
+      <select name="statut_code">
+        {% for s in statuts %}
+        <option value="{{ s.code.value }}" {% if s.id == ticket.statut_id %}selected{% endif %}>{{ s.libelle }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn btn-secondary">Appliquer</button>
+    </form>
+  </section>
+
+  <section class="card">
+    <h3>Historique</h3>
+    <ul class="timeline">
+      {% for h in historique %}
+      <li>
+        <span class="t-date">{{ h.date_action.strftime('%d/%m %H:%M') }}</span>
+        <span class="t-action">{{ h.action }}</span>
+        {% if h.utilisateur %}<span class="t-meta">{{ h.utilisateur.full_name }}</span>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+</div>
+<div class="toolbar">
+  <a class="btn btn-ghost" href="{{ url_for('admin.liste_tickets') }}">← Liste</a>
+</div>
+{% endblock %}

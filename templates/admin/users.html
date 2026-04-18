@@ -1,0 +1,43 @@
+{% extends "layout/base_app.html" %}
+{% block title %}Utilisateurs{% endblock %}
+{% block heading %}Comptes utilisateurs{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <a class="btn btn-primary" href="{{ url_for('admin.nouvel_utilisateur') }}">+ Nouvel utilisateur</a>
+</div>
+<div class="card">
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Nom</th>
+          <th>E-mail</th>
+          <th>Rôle</th>
+          <th>Département</th>
+          <th>État</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td>{{ u.full_name }}</td>
+          <td>{{ u.email }}</td>
+          <td><span class="badge badge-role">{{ u.role.value }}</span></td>
+          <td>{{ u.departement or '—' }}</td>
+          <td>{% if u.actif %}<span class="ok">Actif</span>{% else %}<span class="off">Désactivé</span>{% endif %}</td>
+          <td>
+            {% if u.id != current_user.id %}
+            <form method="post" action="{{ url_for('admin.toggle_utilisateur', user_id=u.id) }}" style="display:inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+              <button type="submit" class="btn btn-ghost btn-sm">{% if u.actif %}Désactiver{% else %}Réactiver{% endif %}</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

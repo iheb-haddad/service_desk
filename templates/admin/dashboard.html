@@ -1,0 +1,55 @@
+{% extends "layout/base_app.html" %}
+{% from "_macros.html" import badge_statut, badge_priorite %}
+{% block title %}Administration{% endblock %}
+{% block heading %}Pilotage Service Desk{% endblock %}
+{% block content %}
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-value">{{ total }}</div>
+    <div class="stat-label">Tickets cumulés</div>
+  </div>
+  <div class="stat-card stat-accent">
+    <div class="stat-value">{{ ouverts }}</div>
+    <div class="stat-label">Ouverts / en cours</div>
+  </div>
+  <div class="stat-card stat-warn">
+    <div class="stat-value">{{ escalades }}</div>
+    <div class="stat-label">Escaladés</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">{{ users_count }}</div>
+    <div class="stat-label">Utilisateurs actifs</div>
+  </div>
+</div>
+<div class="toolbar">
+  <a class="btn btn-primary" href="{{ url_for('admin.liste_tickets') }}">Voir tous les tickets</a>
+  <a class="btn btn-secondary" href="{{ url_for('admin.utilisateurs') }}">Gérer les comptes</a>
+</div>
+<div class="card">
+  <h3 class="card-title">Dernières demandes</h3>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Réf.</th>
+          <th>Titre</th>
+          <th>Demandeur</th>
+          <th>Priorité</th>
+          <th>Statut</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in recents %}
+        <tr>
+          <td><a href="{{ url_for('admin.detail_ticket', public_id=t.public_id) }}">{{ t.public_id[:8] }}…</a></td>
+          <td>{{ t.titre }}</td>
+          <td>{{ t.demandeur.full_name }}</td>
+          <td>{{ badge_priorite(t.priorite) }}</td>
+          <td>{{ badge_statut(t) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

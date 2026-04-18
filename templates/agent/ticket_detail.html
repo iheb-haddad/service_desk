@@ -1,0 +1,65 @@
+{% extends "layout/base_app.html" %}
+{% from "_macros.html" import badge_statut, badge_priorite %}
+{% block title %}{{ ticket.titre }}{% endblock %}
+{% block heading %}Traitement ticket {{ ticket.public_id[:8] }}{% endblock %}
+{% block content %}
+<div class="detail-grid">
+  <section class="card">
+    <div class="detail-head">
+      <h2>{{ ticket.titre }}</h2>
+      <div>{{ badge_priorite(ticket.priorite) }} {{ badge_statut(ticket) }}</div>
+    </div>
+    <p class="meta-line">Demandeur : <strong>{{ ticket.demandeur.full_name }}</strong> · {{ ticket.demandeur.email }}</p>
+    <p class="meta-line">Catégorie : {{ ticket.category.nom }} · SLA cible {{ ticket.date_echeance_sla.strftime('%d/%m/%Y %H:%M') if ticket.date_echeance_sla else '—' }}</p>
+    <div class="prose pre-wrap">{{ ticket.description }}</div>
+  </section>
+
+  <section class="card">
+    <h3>Changer le statut</h3>
+    <form method="post" action="{{ url_for('agent.changer_statut', public_id=ticket.public_id) }}" class="inline-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+      <select name="statut_code">
+        {% for s in statuts %}
+        {% if s.code.value in ['en_cours','resolu'] or s.id == ticket.statut_id %}
+        <option value="{{ s.code.value }}" {% if s.id == ticket.statut_id %}selected{% endif %}>{{ s.libelle }}</option>
+        {% endif %}
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn btn-primary">Mettre à jour</button>
+    </form>
+    <p class="hint">Vous pouvez passer le ticket en « En cours » ou « Résolu ». La clôture finale est effectuée par l’employé après satisfaction.</p>
+  </section>
+
+  <section class="card">
+    <h3>Commentaires</h3>
+    {% for c in ticket.commentaires %}
+    <div class="comment">
+      <div class="comment-meta">{{ c.auteur.full_name }} · {{ c.date_creation.strftime('%d/%m/%Y %H:%M') }}</div>
+      <div>{{ c.contenu }}</div>
+    </div>
+    {% else %}
+    <p class="muted">Aucun commentaire.</p>
+    {% endfor %}
+    <form method="post" action="{{ url_for('agent.ajouter_commentaire', public_id=ticket.public_id) }}" class="stack-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+      <textarea name="contenu" rows="3" placeholder="Réponse ou question à l’utilisateur…"></textarea>
+      <button type="submit" class="btn btn-secondary">Ajouter un commentaire</button>
+    </form>
+  </section>
+
+  <section class="card">
+    <h3>Historique</h3>
+    <ul class="timeline">
+      {% for h in historique %}
+      <li>
+        <span class="t-date">{{ h.date_action.strftime('%d/%m %H:%M') }}</span>
+        <span class="t-action">{{ h.action }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+</div>
+<div class="toolbar">
+  <a class="btn btn-ghost" href="{{ url_for('agent.dashboard') }}">← Retour</a>
+</div>
+{% endblock %}
