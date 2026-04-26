@@ -1,26 +1,42 @@
 {% extends "layout/base_app.html" %}
 {% block title %}Notifications{% endblock %}
-{% block heading %}Centre de notifications{% endblock %}
+{% block heading %}Notifications{% endblock %}
 {% block content %}
-<div class="card">
-  <ul class="notif-list">
+<div class="td-page nt-page">
+  <div class="td-toolbar nt-toolbar">
+    <p class="nt-toolbar__hint">Les messages affichés sont marqués comme <strong>lus</strong> automatiquement.</p>
+    <span class="td-ref nt-count-badge">{% if items|length %}{{ items|length }} récente{{ 's' if items|length > 1 else '' }}{% else %}Aucun message{% endif %}</span>
+  </div>
+
+  <div class="nt-list">
     {% for n in items %}
-    <li class="notif-item {% if not n.lue %}unread{% endif %}">
-      <div>
-        <div class="notif-title">{{ n.titre or n.type_notif.value }}</div>
-        <div class="notif-msg">{{ n.message }}</div>
-        <div class="notif-date muted">{{ n.date_creation.strftime('%d/%m/%Y %H:%M') }}</div>
+    <article class="nt-card">
+      <div class="nt-card__accent" aria-hidden="true"></div>
+      <div class="nt-card__body">
+        <header class="nt-card__head">
+          <span class="nt-card__type">{{ n.titre or n.type_notif.value|replace('_',' ') }}</span>
+          <time class="nt-card__date" datetime="{{ n.date_creation.isoformat() }}">{{ n.date_creation.strftime('%d/%m/%Y · %H:%M') }}</time>
+        </header>
+        <p class="nt-card__msg">{{ n.message }}</p>
+        <footer class="nt-card__foot">
+          {% if n.ticket %}
+            {% if current_user.role.value == 'admin' %}
+            <a class="btn btn-sm btn-secondary" href="{{ url_for('admin.detail_ticket', public_id=n.ticket.public_id) }}">Ouvrir le ticket</a>
+            {% elif current_user.role.value == 'agent_it' %}
+            <a class="btn btn-sm btn-secondary" href="{{ url_for('agent.detail_ticket', public_id=n.ticket.public_id) }}">Ouvrir le ticket</a>
+            {% else %}
+            <a class="btn btn-sm btn-secondary" href="{{ url_for('employe.detail_ticket', public_id=n.ticket.public_id) }}">Ouvrir le ticket</a>
+            {% endif %}
+          {% endif %}
+        </footer>
       </div>
-      {% if not n.lue %}
-      <form method="post" action="{{ url_for('notifications.marquer_lue', nid=n.id) }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-        <button type="submit" class="btn btn-ghost btn-sm">Marquer lu</button>
-      </form>
-      {% endif %}
-    </li>
+    </article>
     {% else %}
-    <li class="empty">Aucune notification.</li>
+    <div class="card nt-empty">
+      <p class="nt-empty__title">Aucune notification</p>
+      <p class="muted nt-empty__text">Les alertes liées à vos tickets apparaîtront ici.</p>
+    </div>
     {% endfor %}
-  </ul>
+  </div>
 </div>
 {% endblock %}

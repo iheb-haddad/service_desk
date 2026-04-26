@@ -1,52 +1,84 @@
 {% extends "layout/base_app.html" %}
 {% block title %}Nouveau ticket{% endblock %}
-{% block heading %}Créer une demande{% endblock %}
+{% block heading %}Nouvelle demande{% endblock %}
 {% block content %}
-<div class="grid-2">
-  <form class="card form-card" method="post" action="{{ url_for('employe.nouveau_ticket') }}" enctype="multipart/form-data">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-    <label class="field">
-      <span>Titre de la demande</span>
-      <input type="text" name="titre" required maxlength="255" placeholder="Ex. Impossible d’accéder à l’application de crédit">
-    </label>
-    <label class="field">
-      <span>Description détaillée</span>
-      <textarea name="description" rows="6" required placeholder="Contexte, messages d’erreur, étapes pour reproduire…"></textarea>
-    </label>
-    <div class="field-row">
-      <label class="field">
-        <span>Catégorie</span>
-        <select name="category_id" required>
-          <option value="">— Choisir —</option>
-          {% for c in categories %}
-          <option value="{{ c.id }}">{{ c.nom }} (SLA {{ c.delai_sla_heures }} h)</option>
-          {% endfor %}
-        </select>
-      </label>
-      <label class="field">
-        <span>Urgence perçue</span>
-        <select name="urgence">
-          {% for u in urgences %}
-          <option value="{{ u.value }}" {% if u.value == 'moyenne' %}selected{% endif %}>{{ u.value }}</option>
-          {% endfor %}
-        </select>
-      </label>
+<div class="td-page ticket-new-page">
+  <div class="td-toolbar">
+    <a class="btn btn-ghost td-back" href="{{ url_for('employe.dashboard') }}">← Mes demandes</a>
+    <span class="td-ref">Formulaire guidé</span>
+  </div>
+
+  <div class="td-split ticket-new-split">
+    <div class="td-main">
+      <form class="card td-section ticket-new-form" method="post" action="{{ url_for('employe.nouveau_ticket') }}" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <div class="td-section__head ticket-new-form__intro">
+          <span class="td-section__icon" aria-hidden="true">＋</span>
+          <div>
+            <h2 class="td-section__title ticket-new-form__title">Décrivez votre besoin</h2>
+            <p class="td-section__lead">Un titre clair et une description précise accélèrent le traitement par l’équipe IT.</p>
+          </div>
+        </div>
+
+        <label class="field">
+          <span>Titre de la demande</span>
+          <input type="text" name="titre" required maxlength="255" placeholder="Ex. Impossible d’accéder à l’application de crédit" class="ticket-new-input"/>
+        </label>
+        <label class="field">
+          <span>Description détaillée</span>
+          <textarea name="description" rows="8" required placeholder="Contexte, messages d’erreur, navigateur, étapes pour reproduire, impact métier…" class="ticket-new-textarea"></textarea>
+          <span class="hint">Plus le contexte est complet, moins nous aurons besoin d’échanges pour qualifier le problème.</span>
+        </label>
+
+        <div class="ticket-new-subgrid">
+          <label class="field">
+            <span>Catégorie</span>
+            <select name="category_id" required class="ticket-new-select">
+              <option value="">— Choisir —</option>
+              {% for c in categories %}
+              <option value="{{ c.id }}">{{ c.nom }} · SLA {{ c.delai_sla_heures }} h</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="field">
+            <span>Urgence perçue</span>
+            <select name="urgence" class="ticket-new-select">
+              {% for u in urgences %}
+              <option value="{{ u.value }}" {% if u.value == 'moyenne' %}selected{% endif %}>{{ u.value }}</option>
+              {% endfor %}
+            </select>
+          </label>
+        </div>
+
+        <div class="ticket-new-upload">
+          <label class="field ticket-new-upload__field">
+            <span>Pièces jointes <span class="ticket-new-optional">(optionnel)</span></span>
+            <input type="file" name="pieces_jointes" multiple class="ticket-new-file"/>
+            <span class="hint">Captures d’écran, PDF, bordereaux — formats autorisés par la politique IT, taille max selon configuration serveur.</span>
+          </label>
+        </div>
+
+        <div class="ticket-new-actions">
+          <button type="submit" class="btn btn-primary">Envoyer la demande</button>
+        </div>
+      </form>
     </div>
-    <label class="field">
-      <span>Pièces jointes (optionnel)</span>
-      <input type="file" name="pieces_jointes" multiple>
-      <small class="hint">PDF, images, Office — max 8 Mo par requête (formats autorisés dans la politique IT).</small>
-    </label>
-    <button type="submit" class="btn btn-primary">Envoyer la demande</button>
-  </form>
-  <aside class="card aside-card">
-    <h3>Règles de priorisation</h3>
-    <p class="muted">La priorité affichée est calculée automatiquement à partir de votre niveau d’urgence et de la catégorie métier (poids banque + SLA).</p>
-    <ul class="check-list">
-      <li>Délai de traitement cible selon la catégorie</li>
-      <li>Escalade automatique si le délai est dépassé</li>
-      <li>Notifications à chaque changement d’état</li>
-    </ul>
-  </aside>
+
+    <aside class="td-aside">
+      <section class="card td-section ticket-new-aside">
+        <div class="td-section__head td-section__head--compact">
+          <span class="td-section__icon td-section__icon--history" aria-hidden="true">ⓘ</span>
+          <h3 class="td-section__title">Bon à savoir</h3>
+        </div>
+        <p class="muted ticket-new-aside__lead">La <strong>priorité</strong> affichée sur votre ticket est calculée automatiquement à partir de l’urgence déclarée et de la catégorie (poids métier + SLA).</p>
+        <ul class="ticket-new-checklist">
+          <li>Délai cible selon la catégorie choisie</li>
+          <li>Escalade possible si le délai est dépassé</li>
+          <li>Notifications à chaque changement d’état</li>
+          <li>Suivi dans « Mes demandes » après envoi</li>
+        </ul>
+      </section>
+    </aside>
+  </div>
 </div>
 {% endblock %}

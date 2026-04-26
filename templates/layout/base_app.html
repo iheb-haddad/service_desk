@@ -28,7 +28,7 @@
         <a class="nav-item {% if ep in ('admin.liste_tickets', 'admin.detail_ticket') %}active{% endif %}" href="{{ url_for('admin.liste_tickets') }}">Tous les tickets</a>
         <a class="nav-item {% if ep in ('admin.utilisateurs', 'admin.nouvel_utilisateur', 'admin.toggle_utilisateur') %}active{% endif %}" href="{{ url_for('admin.utilisateurs') }}">Utilisateurs</a>
         {% elif current_user.role.value == 'agent_it' %}
-        <a class="nav-item {% if ep in ('agent.dashboard', 'agent.detail_ticket', 'agent.ajouter_commentaire', 'agent.changer_statut') %}active{% endif %}" href="{{ url_for('agent.dashboard') }}">Mes tickets assignés</a>
+        <a class="nav-item {% if ep and ep.startswith('agent.') %}active{% endif %}" href="{{ url_for('agent.dashboard') }}">Mes tickets assignés</a>
         {% else %}
         <a class="nav-item {% if ep in ('employe.dashboard', 'employe.detail_ticket', 'employe.ajouter_commentaire', 'employe.satisfaction') %}active{% endif %}" href="{{ url_for('employe.dashboard') }}">Mes demandes</a>
         <a class="nav-item {% if ep == 'employe.nouveau_ticket' %}active{% endif %}" href="{{ url_for('employe.nouveau_ticket') }}">Nouveau ticket</a>
@@ -61,5 +61,6 @@
   </div>
   <div id="toast-root" class="toast-root" aria-live="polite" aria-atomic="false"></div>
   <script src="{{ url_for('static', filename='js/realtime-notifications.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/local-datetime.js') }}" defer></script>
 </body>
 </html>

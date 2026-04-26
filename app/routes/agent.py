@@ -8,6 +8,7 @@ from flask_login import current_user
 from app.decorators import role_required
 from app.extensions import db
 from app.models import (
+    AISuggestionStatus,
     Comment,
     NotificationType,
     Ticket,
@@ -20,6 +21,51 @@ from app.services.history import log_action
 from app.services.notifications import creer_notification
 
 bp = Blueprint("agent", __name__, url_prefix="/agent")
+
+
+def _ticket_resolu_row() -> TicketStatus | None:
+    return TicketStatus.query.filter_by(code=TicketStatusCode.RESOLU).first()
+
+
+def _appliquer_solution_et_resoudre(ticket: Ticket, solution: str) -> bool:
+    """
+    Enregistre la solution et passe le ticket en « Résolu » si ce n'est pas déjà fermé.
+    Retourne False si le ticket est fermé (aucune modification statut).
+    """
+    texte = solution.strip()
+    if not texte:
+        return True
+
+    if ticket.statut.code == TicketStatusCode.FERME:
+        return False
+
+    statut_resolu = _ticket_resolu_row()
+    if not statut_resolu:
+        raise RuntimeError("Statut « résolu » absent en base.")
+
+    ancien = ticket.statut
+    ticket.solution = texte
+    ticket.date_mise_a_jour = datetime.utcnow()
+
+    if ancien.code != TicketStatusCode.RESOLU:
+        ticket.statut_id = statut_resolu.id
+        ticket.date_resolution = datetime.utcnow()
+        log_action(
+            ticket.id,
+            current_user.id,
+            "resolution",
+            ancien.code.value,
+            TicketStatusCode.RESOLU.value,
+        )
+        creer_notification(
+            destinataire_id=ticket.demandeur_id,
+            type_notif=NotificationType.STATUT_CHANGE,
+            message=f"Votre ticket « {ticket.titre} » est maintenant : {statut_resolu.libelle}.",
+            ticket_id=ticket.id,
+            titre="Statut du ticket",
+        )
+
+    return True
 
 
 @bp.route("/")
@@ -47,12 +93,10 @@ def detail_ticket(public_id: str):
         .order_by(TicketHistory.date_action.asc())
         .all()
     )
-    statuts = TicketStatus.query.order_by(TicketStatus.id).all()
     return render_template(
         "agent/ticket_detail.html",
         ticket=ticket,
         historique=historique,
-        statuts=statuts,
     )
 
 
@@ -92,47 +136,111 @@ def changer_statut(public_id: str):
         flash("Accès refusé.", "error")
         return redirect(url_for("agent.dashboard"))
 
-    code_str = (request.form.get("statut_code") or "").strip()
-    try:
-        code = TicketStatusCode(code_str)
-    except ValueError:
-        flash("Statut invalide.", "error")
-        return redirect(url_for("agent.detail_ticket", public_id=public_id))
-
-    nouveau = TicketStatus.query.filter_by(code=code).first()
-    if not nouveau:
-        flash("Statut inconnu.", "error")
+    solution = (request.form.get("solution") or "").strip()
+    if not solution:
+        flash("Veuillez renseigner une solution pour enregistrer.", "error")
         return redirect(url_for("agent.detail_ticket", public_id=public_id))
 
     ancien = ticket.statut
-    if ancien.id == nouveau.id:
+    deja_resolu = ancien.code == TicketStatusCode.RESOLU
+    if not _appliquer_solution_et_resoudre(ticket, solution):
+        flash("Ce ticket est clôturé ; la solution ne peut pas être enregistrée.", "error")
         return redirect(url_for("agent.detail_ticket", public_id=public_id))
-
-    if code not in (TicketStatusCode.EN_COURS, TicketStatusCode.RESOLU):
-        flash("Vous ne pouvez passer le ticket qu'en « En cours » ou « Résolu ».", "error")
-        return redirect(url_for("agent.detail_ticket", public_id=public_id))
-
-    ticket.statut_id = nouveau.id
-    ticket.date_mise_a_jour = datetime.utcnow()
-    if code == TicketStatusCode.RESOLU:
-        ticket.date_resolution = datetime.utcnow()
-
-    log_action(
-        ticket.id,
-        current_user.id,
-        "changement_statut",
-        ancien.code.value,
-        nouveau.code.value,
-    )
-
-    creer_notification(
-        destinataire_id=ticket.demandeur_id,
-        type_notif=NotificationType.STATUT_CHANGE,
-        message=f"Votre ticket « {ticket.titre} » est maintenant : {nouveau.libelle}.",
-        ticket_id=ticket.id,
-        titre="Statut du ticket",
-    )
 
     db.session.commit()
-    flash("Statut mis à jour.", "success")
+    flash(
+        "Solution enregistrée ; le ticket est marqué comme résolu."
+        if not deja_resolu
+        else "Solution mise à jour.",
+        "success",
+    )
+    return redirect(url_for("agent.detail_ticket", public_id=public_id))
+
+
+@bp.route("/tickets/<public_id>/ai-suggestion/accept", methods=["POST"])
+@role_required(UserRole.AGENT_IT)
+def accept_ai_suggestion(public_id: str):
+    ticket = Ticket.query.filter_by(public_id=public_id).first_or_404()
+    if ticket.assignee_id != current_user.id:
+        flash("Accès refusé.", "error")
+        return redirect(url_for("agent.dashboard"))
+
+    suggestion = (ticket.ai_suggested_solution or "").strip()
+    if not suggestion:
+        flash("Aucune suggestion IA disponible.", "error")
+        return redirect(url_for("agent.detail_ticket", public_id=public_id))
+
+    if ticket.statut.code == TicketStatusCode.FERME:
+        flash("Ce ticket est clôturé.", "error")
+        return redirect(url_for("agent.detail_ticket", public_id=public_id))
+
+    deja_resolu = ticket.statut.code == TicketStatusCode.RESOLU
+    ticket.ai_suggestion_status = AISuggestionStatus.ACCEPTED
+    if not _appliquer_solution_et_resoudre(ticket, suggestion):
+        flash("Ce ticket est clôturé.", "error")
+        return redirect(url_for("agent.detail_ticket", public_id=public_id))
+
+    db.session.add(Comment(ticket_id=ticket.id, auteur_id=current_user.id, contenu=suggestion))
+    log_action(ticket.id, current_user.id, "ia_suggestion_accept", None, suggestion[:200])
+
+    db.session.commit()
+    flash(
+        "Suggestion IA validée ; le ticket est marqué comme résolu."
+        if not deja_resolu
+        else "Suggestion IA validée et enregistrée.",
+        "success",
+    )
+    return redirect(url_for("agent.detail_ticket", public_id=public_id))
+
+
+@bp.route("/tickets/<public_id>/ai-suggestion/edit", methods=["POST"])
+@role_required(UserRole.AGENT_IT)
+def edit_ai_suggestion(public_id: str):
+    ticket = Ticket.query.filter_by(public_id=public_id).first_or_404()
+    if ticket.assignee_id != current_user.id:
+        flash("Accès refusé.", "error")
+        return redirect(url_for("agent.dashboard"))
+
+    edited_solution = (request.form.get("edited_solution") or "").strip()
+    if not edited_solution:
+        flash("La solution modifiée est vide.", "error")
+        return redirect(url_for("agent.detail_ticket", public_id=public_id))
+
+    if ticket.statut.code == TicketStatusCode.FERME:
+        flash("Ce ticket est clôturé.", "error")
+        return redirect(url_for("agent.detail_ticket", public_id=public_id))
+
+    deja_resolu = ticket.statut.code == TicketStatusCode.RESOLU
+    ticket.ai_suggestion_status = AISuggestionStatus.EDITED
+    if not _appliquer_solution_et_resoudre(ticket, edited_solution):
+        flash("Ce ticket est clôturé.", "error")
+        return redirect(url_for("agent.detail_ticket", public_id=public_id))
+
+    db.session.add(Comment(ticket_id=ticket.id, auteur_id=current_user.id, contenu=edited_solution))
+    log_action(ticket.id, current_user.id, "ia_suggestion_edit", None, edited_solution[:200])
+
+    db.session.commit()
+    flash(
+        "Solution enregistrée ; le ticket est marqué comme résolu."
+        if not deja_resolu
+        else "Suggestion IA modifiée et enregistrée.",
+        "success",
+    )
+    return redirect(url_for("agent.detail_ticket", public_id=public_id))
+
+
+@bp.route("/tickets/<public_id>/ai-suggestion/reject", methods=["POST"])
+@role_required(UserRole.AGENT_IT)
+def reject_ai_suggestion(public_id: str):
+    ticket = Ticket.query.filter_by(public_id=public_id).first_or_404()
+    if ticket.assignee_id != current_user.id:
+        flash("Accès refusé.", "error")
+        return redirect(url_for("agent.dashboard"))
+
+    ticket.ai_suggestion_status = AISuggestionStatus.REJECTED
+    ticket.date_mise_a_jour = datetime.utcnow()
+    log_action(ticket.id, current_user.id, "ia_suggestion_reject", None, "rejected")
+
+    db.session.commit()
+    flash("Suggestion IA rejetée.", "info")
     return redirect(url_for("agent.detail_ticket", public_id=public_id))

@@ -1,72 +1,137 @@
 {% extends "layout/base_app.html" %}
 {% from "_macros.html" import badge_statut, badge_priorite %}
-{% block title %}{{ ticket.titre }}{% endblock %}
-{% block heading %}Admin — ticket {{ ticket.public_id[:8] }}{% endblock %}
+{% block title %}{{ ticket.titre }} — Admin{% endblock %}
+{% block heading %}Admin · {{ ticket.public_id[:8] }}{% endblock %}
 {% block content %}
-<div class="detail-grid">
-  <section class="card">
-    <div class="detail-head">
-      <h2>{{ ticket.titre }}</h2>
-      <div>{{ badge_priorite(ticket.priorite) }} {{ badge_statut(ticket) }}</div>
+<div class="td-page">
+  <div class="td-toolbar">
+    <a class="btn btn-ghost td-back" href="{{ url_for('admin.liste_tickets') }}">← Tous les tickets</a>
+    <span class="td-ref" title="Référence complète">{{ ticket.public_id }}</span>
+  </div>
+
+  <header class="td-hero card">
+    <div class="td-hero__top">
+      <div class="td-hero__titles">
+        <p class="td-hero__eyebrow">Vue administrateur</p>
+        <h2 class="td-hero__title">{{ ticket.titre }}</h2>
+      </div>
+      <div class="td-hero__badges">
+        {{ badge_priorite(ticket.priorite) }}
+        {{ badge_statut(ticket) }}
+      </div>
     </div>
-    <p class="meta-line">{{ ticket.demandeur.full_name }} · {{ ticket.demandeur.email }} · {{ ticket.category.nom }}</p>
-    <div class="prose pre-wrap">{{ ticket.description }}</div>
+    <dl class="td-meta-grid">
+      <div class="td-meta-tile">
+        <dt>Demandeur</dt>
+        <dd>{{ ticket.demandeur.full_name }}</dd>
+        <dd class="td-meta-tile__sub">{{ ticket.demandeur.email }}</dd>
+      </div>
+      <div class="td-meta-tile">
+        <dt>Catégorie</dt>
+        <dd>{{ ticket.category.nom }}</dd>
+      </div>
+      <div class="td-meta-tile">
+        <dt>SLA cible</dt>
+        <dd>{% if ticket.date_echeance_sla %}{{ ticket.date_echeance_sla.strftime('%d/%m/%Y %H:%M') }}{% else %}—{% endif %}</dd>
+      </div>
+      <div class="td-meta-tile">
+        <dt>Urgence</dt>
+        <dd class="td-meta-tile__cap">{{ ticket.urgence.value }}</dd>
+      </div>
+      <div class="td-meta-tile">
+        <dt>Agent assigné</dt>
+        <dd>{% if ticket.assignee %}{{ ticket.assignee.full_name }}{% else %}—{% endif %}</dd>
+      </div>
+      <div class="td-meta-tile">
+        <dt>Créé le</dt>
+        <dd>{{ ticket.date_creation.strftime('%d/%m/%Y %H:%M') }}</dd>
+      </div>
+    </dl>
+    <div class="td-description">
+      <span class="td-description__label">Description</span>
+      <div class="td-description__body prose pre-wrap">{{ ticket.description }}</div>
+    </div>
     {% if ticket.pieces_jointes %}
-    <h3>Fichiers</h3>
-    <ul class="link-list">
-      {% for pj in ticket.pieces_jointes %}
-      <li><a href="{{ url_for('attachments.telecharger', attachment_id=pj.id) }}">{{ pj.nom_fichier }}</a></li>
-      {% endfor %}
-    </ul>
-    {% endif %}
-  </section>
-
-  <section class="card">
-    <h3>Assignation</h3>
-    <form method="post" class="stack-form">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-      <input type="hidden" name="action" value="assigner"/>
-      <label class="field">
-        <span>Agent IT</span>
-        <select name="agent_id">
-          <option value="">— Non assigné —</option>
-          {% for a in agents %}
-          <option value="{{ a.id }}" {% if ticket.assignee_id == a.id %}selected{% endif %}>{{ a.full_name }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <button type="submit" class="btn btn-primary">Enregistrer l’assignation</button>
-    </form>
-  </section>
-
-  <section class="card">
-    <h3>Statut (contrôle complet)</h3>
-    <form method="post" class="inline-form">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-      <input type="hidden" name="action" value="statut"/>
-      <select name="statut_code">
-        {% for s in statuts %}
-        <option value="{{ s.code.value }}" {% if s.id == ticket.statut_id %}selected{% endif %}>{{ s.libelle }}</option>
+    <div class="td-file-block">
+      <span class="td-file-block__label">Pièces jointes</span>
+      <ul class="td-file-list">
+        {% for pj in ticket.pieces_jointes %}
+        <li><a href="{{ url_for('attachments.telecharger', attachment_id=pj.id) }}">{{ pj.nom_fichier }}</a></li>
         {% endfor %}
-      </select>
-      <button type="submit" class="btn btn-secondary">Appliquer</button>
-    </form>
-  </section>
+      </ul>
+    </div>
+    {% endif %}
+  </header>
 
-  <section class="card">
-    <h3>Historique</h3>
-    <ul class="timeline">
-      {% for h in historique %}
-      <li>
-        <span class="t-date">{{ h.date_action.strftime('%d/%m %H:%M') }}</span>
-        <span class="t-action">{{ h.action }}</span>
-        {% if h.utilisateur %}<span class="t-meta">{{ h.utilisateur.full_name }}</span>{% endif %}
-      </li>
-      {% endfor %}
-    </ul>
-  </section>
-</div>
-<div class="toolbar">
-  <a class="btn btn-ghost" href="{{ url_for('admin.liste_tickets') }}">← Liste</a>
+  <div class="td-split">
+    <div class="td-main">
+      <section class="card td-section td-section--assign">
+        <div class="td-section__head">
+          <span class="td-section__icon td-section__icon--assign" aria-hidden="true">⎘</span>
+          <div>
+            <h3 class="td-section__title">Assignation</h3>
+            <p class="td-section__lead">Choisissez l’agent IT responsable. Un ticket « Créé » passe automatiquement en « En cours » lors de l’assignation.</p>
+          </div>
+        </div>
+        <form method="post" class="td-assign-form stack-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+          <input type="hidden" name="action" value="assigner"/>
+          <label class="field">
+            <span>Agent IT</span>
+            <select name="agent_id">
+              <option value="">— Non assigné —</option>
+              {% for a in agents %}
+              <option value="{{ a.id }}" {% if ticket.assignee_id == a.id %}selected{% endif %}>{{ a.full_name }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <button type="submit" class="btn btn-primary">Enregistrer l’assignation</button>
+        </form>
+      </section>
+
+      <section class="card td-section">
+        <div class="td-section__head">
+          <span class="td-section__icon td-section__icon--admin" aria-hidden="true">⚙</span>
+          <div>
+            <h3 class="td-section__title">Statut</h3>
+            <p class="td-section__lead">Contrôle manuel du cycle de vie (tous les statuts disponibles).</p>
+          </div>
+        </div>
+        <form method="post" class="td-admin-statut-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+          <input type="hidden" name="action" value="statut"/>
+          <select name="statut_code" aria-label="Nouveau statut">
+            {% for s in statuts %}
+            <option value="{{ s.code.value }}" {% if s.id == ticket.statut_id %}selected{% endif %}>{{ s.libelle }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="btn btn-secondary">Appliquer le statut</button>
+        </form>
+      </section>
+    </div>
+
+    <aside class="td-aside">
+      <section class="card td-section td-section--history">
+        <div class="td-section__head td-section__head--compact">
+          <span class="td-section__icon td-section__icon--history" aria-hidden="true">◎</span>
+          <h3 class="td-section__title">Historique</h3>
+        </div>
+        <ul class="td-timeline">
+          {% for h in historique %}
+          <li class="td-timeline__item">
+            <span class="td-timeline__dot"></span>
+            <div class="td-timeline__content">
+              <time class="td-timeline__date js-local-datetime" datetime="{{ h.date_action | utc_iso_datetime }}"></time>
+              <span class="td-timeline__action">{{ h | timeline_event_label }}</span>
+              {% if h.utilisateur %}<span class="td-timeline__user">{{ h.utilisateur.full_name }}</span>{% endif %}
+            </div>
+          </li>
+          {% else %}
+          <li class="td-timeline__empty muted">Aucune entrée pour le moment.</li>
+          {% endfor %}
+        </ul>
+      </section>
+    </aside>
+  </div>
 </div>
 {% endblock %}

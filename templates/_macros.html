@@ -5,3 +5,7 @@
 {% macro badge_priorite(p) %}
   <span class="badge badge-pr-{{ p.value }}">{{ p.value }}</span>
 {% endmacro %}
+
+{% macro btn_voir_detail(url, label='Voir le détail') %}
+  <a class="btn btn-sm btn-secondary" href="{{ url }}">{{ label }}</a>
+{% endmacro %}

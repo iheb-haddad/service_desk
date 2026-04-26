@@ -22,6 +22,10 @@ def create_app(config_class: type = Config) -> Flask:
     login_manager.init_app(app)
     csrf.init_app(app)
 
+    from app.jinja_filters import register_template_filters
+
+    register_template_filters(app)
+
     @login_manager.user_loader
     def load_user(user_id: str):
         return User.query.get(int(user_id))

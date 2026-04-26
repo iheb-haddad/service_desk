@@ -1,104 +1,181 @@
 {% extends "layout/base_app.html" %}
 {% from "_macros.html" import badge_statut, badge_priorite %}
-{% block title %}{{ ticket.titre }}{% endblock %}
-{% block heading %}Ticket {{ ticket.public_id[:8] }}{% endblock %}
+{% block title %}{{ ticket.titre }} — Ma demande{% endblock %}
+{% block heading %}Ma demande · {{ ticket.public_id[:8] }}{% endblock %}
 {% block content %}
-<div class="detail-grid">
-  <section class="card">
-    <div class="detail-head">
-      <h2>{{ ticket.titre }}</h2>
-      <div class="detail-badges">{{ badge_priorite(ticket.priorite) }} {{ badge_statut(ticket) }}</div>
-    </div>
-    <p class="meta-line">
-      <span>Catégorie : <strong>{{ ticket.category.nom }}</strong></span>
-      <span>Urgence : <strong>{{ ticket.urgence.value }}</strong></span>
-      <span>SLA cible : <strong>{{ ticket.date_echeance_sla.strftime('%d/%m/%Y %H:%M') if ticket.date_echeance_sla else '—' }}</strong></span>
-    </p>
-    {% if ticket.escalade_declenchee %}
-    <div class="banner banner-warn">Ce ticket a été <strong>escaladé</strong> suite au dépassement du délai de traitement.</div>
-    {% endif %}
-    <div class="prose pre-wrap">{{ ticket.description }}</div>
-    {% if ticket.assignee %}
-    <p class="meta-line">Agent IT : <strong>{{ ticket.assignee.full_name }}</strong></p>
-    {% endif %}
+<div class="td-page">
+  <div class="td-toolbar">
+    <a class="btn btn-ghost td-back" href="{{ url_for('employe.dashboard') }}">← Mes demandes</a>
+    <span class="td-ref" title="Référence complète">{{ ticket.public_id }}</span>
+  </div>
 
-    {% if ticket.pieces_jointes %}
-    <h3>Pièces jointes</h3>
-    <ul class="link-list">
-      {% for pj in ticket.pieces_jointes %}
-      <li><a href="{{ url_for('attachments.telecharger', attachment_id=pj.id) }}">{{ pj.nom_fichier }}</a></li>
-      {% endfor %}
-    </ul>
-    {% endif %}
-  </section>
-
-  <section class="card">
-    <h3>Commentaires</h3>
-    <div class="comments">
-      {% for c in ticket.commentaires %}
-      <div class="comment">
-        <div class="comment-meta">{{ c.auteur.full_name }} · {{ c.date_creation.strftime('%d/%m/%Y %H:%M') }}</div>
-        <div>{{ c.contenu }}</div>
+  <header class="td-hero card">
+    <div class="td-hero__top">
+      <div class="td-hero__titles">
+        <p class="td-hero__eyebrow">Ma demande IT</p>
+        <h2 class="td-hero__title">{{ ticket.titre }}</h2>
       </div>
-      {% else %}
-      <p class="muted">Aucun commentaire pour l’instant.</p>
-      {% endfor %}
+      <div class="td-hero__badges">
+        {{ badge_priorite(ticket.priorite) }}
+        {{ badge_statut(ticket) }}
+      </div>
     </div>
-    <form method="post" action="{{ url_for('employe.ajouter_commentaire', public_id=ticket.public_id) }}" class="stack-form">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-      <textarea name="contenu" rows="3" placeholder="Ajouter un commentaire…"></textarea>
-      <button type="submit" class="btn btn-secondary">Publier</button>
-    </form>
-  </section>
+    <dl class="td-meta-grid">
+      <div class="td-meta-tile">
+        <dt>Catégorie</dt>
+        <dd>{{ ticket.category.nom }}</dd>
+      </div>
+      <div class="td-meta-tile">
+        <dt>Urgence</dt>
+        <dd class="td-meta-tile__cap">{{ ticket.urgence.value }}</dd>
+      </div>
+      <div class="td-meta-tile">
+        <dt>SLA cible</dt>
+        <dd>{% if ticket.date_echeance_sla %}{{ ticket.date_echeance_sla.strftime('%d/%m/%Y %H:%M') }}{% else %}—{% endif %}</dd>
+      </div>
+      <div class="td-meta-tile">
+        <dt>Agent IT</dt>
+        <dd>{% if ticket.assignee %}{{ ticket.assignee.full_name }}{% else %}En attente d’assignation{% endif %}</dd>
+      </div>
+      <div class="td-meta-tile">
+        <dt>Créé le</dt>
+        <dd>{{ ticket.date_creation.strftime('%d/%m/%Y %H:%M') }}</dd>
+      </div>
+    </dl>
+    {% if ticket.escalade_declenchee %}
+    <div class="banner-warn td-banner-inline">Ce ticket a été <strong>escaladé</strong> suite au dépassement du délai de traitement.</div>
+    {% endif %}
+    <div class="td-description">
+      <span class="td-description__label">Description</span>
+      <div class="td-description__body prose pre-wrap">{{ ticket.description }}</div>
+    </div>
+    {% if ticket.pieces_jointes %}
+    <div class="td-file-block">
+      <span class="td-file-block__label">Pièces jointes</span>
+      <ul class="td-file-list">
+        {% for pj in ticket.pieces_jointes %}
+        <li><a href="{{ url_for('attachments.telecharger', attachment_id=pj.id) }}">{{ pj.nom_fichier }}</a></li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </header>
 
-  {% if ticket.statut.code.value == 'resolu' and not ticket.satisfaction %}
-  <section class="card card-accent">
-    <h3>Clôture & satisfaction</h3>
-    <p class="muted">Le traitement est terminé. Merci d’évaluer le service pour clôturer définitivement le ticket.</p>
-    <form method="post" action="{{ url_for('employe.satisfaction', public_id=ticket.public_id) }}" class="stack-form">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-      <label class="field">
-        <span>Note (1 à 5)</span>
-        <select name="score" required>
-          <option value="">—</option>
-          {% for i in range(1,6) %}
-          <option value="{{ i }}">{{ i }} — {% if i <= 2 %}Insuffisant{% elif i == 3 %}Moyen{% elif i == 4 %}Bon{% else %}Excellent{% endif %}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <label class="field">
-        <span>Commentaire (optionnel)</span>
-        <textarea name="commentaire" rows="2" placeholder="Retour sur la qualité du service…"></textarea>
-      </label>
-      <button type="submit" class="btn btn-primary">Valider et clôturer</button>
-    </form>
-  </section>
-  {% elif ticket.satisfaction %}
-  <section class="card">
-    <h3>Votre évaluation</h3>
-    <p>Note : <strong>{{ ticket.satisfaction.score }}/5</strong></p>
-    {% if ticket.satisfaction.commentaire %}<p>{{ ticket.satisfaction.commentaire }}</p>{% endif %}
-  </section>
-  {% endif %}
+  {% set td_main_blocks = ticket.solution or (ticket.statut.code.value == 'resolu' and not ticket.satisfaction) or ticket.satisfaction %}
+  <div class="td-split{% if not td_main_blocks %} td-split--single{% endif %}">
+    <div class="td-main">
+      {% if ticket.solution %}
+      <section class="card td-section">
+        <div class="td-section__head td-section__head--compact">
+          <span class="td-section__icon" aria-hidden="true">✓</span>
+          <h3 class="td-section__title">Réponse IT</h3>
+        </div>
+        <div class="td-solution-box">
+          <span class="td-solution-box__label">Solution communiquée</span>
+          <div class="td-solution-box__body">{{ ticket.solution }}</div>
+        </div>
+      </section>
+      {% endif %}
 
-  <section class="card">
-    <h3>Historique</h3>
-    <ul class="timeline">
-      {% for h in historique %}
-      <li>
-        <span class="t-date">{{ h.date_action.strftime('%d/%m %H:%M') }}</span>
-        <span class="t-action">{{ h.action }}</span>
-        {% if h.ancienne_valeur or h.nouvelle_valeur %}
-        <span class="t-meta">{{ h.ancienne_valeur }} → {{ h.nouvelle_valeur }}</span>
+      {% if ticket.statut.code.value == 'resolu' and not ticket.satisfaction %}
+      <section class="card td-section td-section--satisfaction card-accent">
+        <div class="td-section__head">
+          <span class="td-section__icon td-section__icon--star" aria-hidden="true">★</span>
+          <div>
+            <h3 class="td-section__title">Clôture & satisfaction</h3>
+            <p class="td-section__lead">Le traitement est terminé. Évaluez le service pour clôturer définitivement le ticket.</p>
+          </div>
+        </div>
+        <form method="post" action="{{ url_for('employe.satisfaction', public_id=ticket.public_id) }}" class="td-satisfaction-form stack-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+          <label class="field">
+            <span>Note (1 à 5)</span>
+            <select name="score" required>
+              <option value="">— Choisir —</option>
+              {% for i in range(1,6) %}
+              <option value="{{ i }}">{{ i }} — {% if i <= 2 %}Insuffisant{% elif i == 3 %}Moyen{% elif i == 4 %}Bon{% else %}Excellent{% endif %}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="field">
+            <span>Commentaire (optionnel)</span>
+            <textarea name="commentaire" rows="3" placeholder="Retour sur la qualité du service…"></textarea>
+          </label>
+          <button type="submit" class="btn btn-primary">Valider et clôturer</button>
+        </form>
+      </section>
+      {% elif ticket.satisfaction %}
+      <section class="card td-section">
+        <div class="td-section__head td-section__head--compact">
+          <span class="td-section__icon td-section__icon--star" aria-hidden="true">★</span>
+          <h3 class="td-section__title">Votre évaluation</h3>
+        </div>
+        <p class="td-eval-score"><strong>Note :</strong> {{ ticket.satisfaction.score }}/5</p>
+        {% if ticket.satisfaction.commentaire %}
+        <div class="td-solution-box td-solution-box--tight">
+          <span class="td-solution-box__label">Votre commentaire</span>
+          <div class="td-solution-box__body">{{ ticket.satisfaction.commentaire }}</div>
+        </div>
         {% endif %}
-      </li>
-      {% else %}
-      <li class="muted">Pas encore d’historique.</li>
-      {% endfor %}
-    </ul>
-  </section>
-</div>
-<div class="toolbar">
-  <a class="btn btn-ghost" href="{{ url_for('employe.dashboard') }}">← Retour à la liste</a>
+      </section>
+      {% endif %}
+    </div>
+
+    <aside class="td-aside">
+      <section class="card td-section td-section--thread">
+        <div class="td-section__head td-section__head--compact">
+          <span class="td-section__icon td-section__icon--thread" aria-hidden="true">✉</span>
+          <h3 class="td-section__title">Échanges</h3>
+        </div>
+        <div class="td-comment-feed">
+          {% for c in ticket.commentaires %}
+          <article class="td-comment-card">
+            <div class="td-comment-card__avatar" aria-hidden="true">{{ c.auteur.prenom[0] }}{{ c.auteur.nom[0] }}</div>
+            <div class="td-comment-card__body">
+              <header class="td-comment-card__meta">
+                <strong>{{ c.auteur.full_name }}</strong>
+                <time datetime="{{ c.date_creation.isoformat() }}">{{ c.date_creation.strftime('%d/%m/%Y %H:%M') }}</time>
+              </header>
+              <div class="td-comment-card__text">{{ c.contenu }}</div>
+            </div>
+          </article>
+          {% else %}
+          <p class="muted td-comment-empty">Pas encore d’échange sur ce ticket.</p>
+          {% endfor %}
+        </div>
+        <form method="post" action="{{ url_for('employe.ajouter_commentaire', public_id=ticket.public_id) }}" class="td-comment-compose">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+          <label class="field">
+            <span class="sr-only">Nouveau message</span>
+            <textarea name="contenu" rows="3" placeholder="Ajouter un commentaire…"></textarea>
+          </label>
+          <button type="submit" class="btn btn-secondary btn-block">Publier le commentaire</button>
+        </form>
+      </section>
+
+      <section class="card td-section td-section--history">
+        <div class="td-section__head td-section__head--compact">
+          <span class="td-section__icon td-section__icon--history" aria-hidden="true">◎</span>
+          <h3 class="td-section__title">Historique</h3>
+        </div>
+        <ul class="td-timeline">
+          {% for h in historique %}
+          <li class="td-timeline__item">
+            <span class="td-timeline__dot"></span>
+            <div class="td-timeline__content">
+              <time class="td-timeline__date js-local-datetime" datetime="{{ h.date_action | utc_iso_datetime }}"></time>
+              <span class="td-timeline__action">{{ h | timeline_event_label }}</span>
+              {% if h.ancienne_valeur or h.nouvelle_valeur %}
+              <span class="td-timeline__detail">{{ h.ancienne_valeur }} → {{ h.nouvelle_valeur }}</span>
+              {% endif %}
+            </div>
+          </li>
+          {% else %}
+          <li class="td-timeline__empty muted">Pas encore d’historique.</li>
+          {% endfor %}
+        </ul>
+      </section>
+    </aside>
+  </div>
 </div>
 {% endblock %}

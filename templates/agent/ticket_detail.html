@@ -1,65 +1,187 @@
 {% extends "layout/base_app.html" %}
 {% from "_macros.html" import badge_statut, badge_priorite %}
-{% block title %}{{ ticket.titre }}{% endblock %}
-{% block heading %}Traitement ticket {{ ticket.public_id[:8] }}{% endblock %}
+{% set ai_status_labels = {
+  'none': 'Aucune suggestion',
+  'pending': 'À traiter',
+  'accepted': 'Validée (texte IA)',
+  'edited': 'Validée (texte adapté)',
+  'rejected': 'Rejetée'
+} %}
+{% block title %}{{ ticket.titre }} — Ticket{% endblock %}
+{% block heading %}Traitement · {{ ticket.public_id[:8] }}{% endblock %}
 {% block content %}
-<div class="detail-grid">
-  <section class="card">
-    <div class="detail-head">
-      <h2>{{ ticket.titre }}</h2>
-      <div>{{ badge_priorite(ticket.priorite) }} {{ badge_statut(ticket) }}</div>
-    </div>
-    <p class="meta-line">Demandeur : <strong>{{ ticket.demandeur.full_name }}</strong> · {{ ticket.demandeur.email }}</p>
-    <p class="meta-line">Catégorie : {{ ticket.category.nom }} · SLA cible {{ ticket.date_echeance_sla.strftime('%d/%m/%Y %H:%M') if ticket.date_echeance_sla else '—' }}</p>
-    <div class="prose pre-wrap">{{ ticket.description }}</div>
-  </section>
+<div class="td-page">
+  <div class="td-toolbar">
+    <a class="btn btn-ghost td-back" href="{{ url_for('agent.dashboard') }}">← Mes tickets</a>
+    <span class="td-ref" title="Référence complète">{{ ticket.public_id }}</span>
+  </div>
 
-  <section class="card">
-    <h3>Changer le statut</h3>
-    <form method="post" action="{{ url_for('agent.changer_statut', public_id=ticket.public_id) }}" class="inline-form">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-      <select name="statut_code">
-        {% for s in statuts %}
-        {% if s.code.value in ['en_cours','resolu'] or s.id == ticket.statut_id %}
-        <option value="{{ s.code.value }}" {% if s.id == ticket.statut_id %}selected{% endif %}>{{ s.libelle }}</option>
+  <header class="td-hero card">
+    <div class="td-hero__top">
+      <div class="td-hero__titles">
+        <p class="td-hero__eyebrow">Demande IT</p>
+        <h2 class="td-hero__title">{{ ticket.titre }}</h2>
+      </div>
+      <div class="td-hero__badges">
+        {{ badge_priorite(ticket.priorite) }}
+        {{ badge_statut(ticket) }}
+      </div>
+    </div>
+    <dl class="td-meta-grid">
+      <div class="td-meta-tile">
+        <dt>Demandeur</dt>
+        <dd>{{ ticket.demandeur.full_name }}</dd>
+        <dd class="td-meta-tile__sub">{{ ticket.demandeur.email }}</dd>
+      </div>
+      <div class="td-meta-tile">
+        <dt>Catégorie</dt>
+        <dd>{{ ticket.category.nom }}</dd>
+      </div>
+      <div class="td-meta-tile">
+        <dt>SLA cible</dt>
+        <dd>{% if ticket.date_echeance_sla %}{{ ticket.date_echeance_sla.strftime('%d/%m/%Y %H:%M') }}{% else %}—{% endif %}</dd>
+      </div>
+      <div class="td-meta-tile">
+        <dt>Urgence</dt>
+        <dd class="td-meta-tile__cap">{{ ticket.urgence.value }}</dd>
+      </div>
+    </dl>
+    <div class="td-description">
+      <span class="td-description__label">Description</span>
+      <div class="td-description__body prose pre-wrap">{{ ticket.description }}</div>
+    </div>
+  </header>
+
+  <div class="td-split">
+    <div class="td-main">
+
+      <section class="card td-section td-section--resolution">
+        <div class="td-section__head">
+          <span class="td-section__icon" aria-hidden="true">✓</span>
+          <div>
+            <h3 class="td-section__title">Résolution</h3>
+            <p class="td-section__lead">Décrivez la solution communiquée au demandeur. L’enregistrement passe automatiquement le ticket en « Résolu ».</p>
+          </div>
+        </div>
+        <form method="post" action="{{ url_for('agent.changer_statut', public_id=ticket.public_id) }}" class="td-resolution-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+          <label class="field td-field-grow">
+            <span>Solution appliquée</span>
+            <textarea name="solution" class="textarea-solution td-textarea" rows="8" placeholder="Cause, actions effectuées, vérifications, consignes pour l’utilisateur…">{{ ticket.solution or '' }}</textarea>
+            <span class="hint">Le statut « Résolu » est appliqué automatiquement à l’enregistrement.</span>
+          </label>
+          <div class="td-form-actions">
+            <button type="submit" class="btn btn-primary">Enregistrer la solution</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="card td-section td-section--ai {% if not (ticket.ai_suggestion_status.value != 'none' and ticket.ai_suggested_solution) %}td-section--ai-empty{% endif %}">
+        <div class="td-section__head">
+          <span class="td-section__icon td-section__icon--ai" aria-hidden="true">◇</span>
+          <div>
+            <h3 class="td-section__title">Suggestion IA</h3>
+            <p class="td-section__lead">Basée sur des tickets résolus similaires. Validez, adaptez ou rejetez.</p>
+          </div>
+        </div>
+
+        {% if ticket.ai_suggestion_status.value != 'none' and ticket.ai_suggested_solution %}
+        <div class="td-ai-meta">
+          {% set _st = ticket.ai_suggestion_status.value %}
+          <span class="td-ai-pill td-ai-pill--status">{% if _st in ai_status_labels %}{{ ai_status_labels[_st] }}{% else %}{{ _st }}{% endif %}</span>
+          {% if ticket.ai_source_ticket %}
+          <span class="td-ai-pill">Source <strong class="td-mono">{{ ticket.ai_source_ticket.public_id[:8] }}</strong></span>
+          {% endif %}
+          <span class="td-ai-pill">Score <strong>{{ '%.0f'|format((ticket.ai_similarity_score or 0) * 100) }}%</strong></span>
+        </div>
+
+        <div class="td-ai-preview">
+          <span class="td-ai-preview__label">Texte suggéré</span>
+          <div class="td-ai-preview__body prose pre-wrap">{{ ticket.ai_suggested_solution }}</div>
+        </div>
+
+        <div class="td-ai-actions">
+          <form method="post" action="{{ url_for('agent.accept_ai_suggestion', public_id=ticket.public_id) }}" class="td-ai-action-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <button type="submit" class="btn btn-primary btn-sm">Valider telle quelle</button>
+            <span class="td-ai-action-hint">→ Résolu + commentaire</span>
+          </form>
+          <form method="post" action="{{ url_for('agent.reject_ai_suggestion', public_id=ticket.public_id) }}" class="td-ai-reject-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <button type="submit" class="btn btn-ghost btn-sm">Rejeter la suggestion</button>
+          </form>
+        </div>
+
+        <form method="post" action="{{ url_for('agent.edit_ai_suggestion', public_id=ticket.public_id) }}" class="td-ai-edit-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+          <label class="field">
+            <span>Adapter puis valider</span>
+            <textarea name="edited_solution" class="textarea-solution td-textarea" rows="6" placeholder="Personnalisez pour ce ticket…">{{ ticket.solution or ticket.ai_suggested_solution }}</textarea>
+            <span class="hint">Enregistre votre version, résout le ticket et publie un commentaire.</span>
+          </label>
+          <button type="submit" class="btn btn-secondary">Valider la version modifiée</button>
+        </form>
+        {% else %}
+        <div class="td-ai-empty-state">
+          <p class="td-ai-empty-state__title">Aucune suggestion pour l’instant</p>
+          <p class="muted td-ai-empty-state__text">Une proposition peut apparaître lorsque des tickets résolus proches sont trouvés dans la base.</p>
+        </div>
         {% endif %}
-        {% endfor %}
-      </select>
-      <button type="submit" class="btn btn-primary">Mettre à jour</button>
-    </form>
-    <p class="hint">Vous pouvez passer le ticket en « En cours » ou « Résolu ». La clôture finale est effectuée par l’employé après satisfaction.</p>
-  </section>
-
-  <section class="card">
-    <h3>Commentaires</h3>
-    {% for c in ticket.commentaires %}
-    <div class="comment">
-      <div class="comment-meta">{{ c.auteur.full_name }} · {{ c.date_creation.strftime('%d/%m/%Y %H:%M') }}</div>
-      <div>{{ c.contenu }}</div>
+      </section>
     </div>
-    {% else %}
-    <p class="muted">Aucun commentaire.</p>
-    {% endfor %}
-    <form method="post" action="{{ url_for('agent.ajouter_commentaire', public_id=ticket.public_id) }}" class="stack-form">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-      <textarea name="contenu" rows="3" placeholder="Réponse ou question à l’utilisateur…"></textarea>
-      <button type="submit" class="btn btn-secondary">Ajouter un commentaire</button>
-    </form>
-  </section>
 
-  <section class="card">
-    <h3>Historique</h3>
-    <ul class="timeline">
-      {% for h in historique %}
-      <li>
-        <span class="t-date">{{ h.date_action.strftime('%d/%m %H:%M') }}</span>
-        <span class="t-action">{{ h.action }}</span>
-      </li>
-      {% endfor %}
-    </ul>
-  </section>
-</div>
-<div class="toolbar">
-  <a class="btn btn-ghost" href="{{ url_for('agent.dashboard') }}">← Retour</a>
+    <aside class="td-aside">
+      <section class="card td-section td-section--thread">
+        <div class="td-section__head td-section__head--compact">
+          <span class="td-section__icon td-section__icon--thread" aria-hidden="true">✉</span>
+          <h3 class="td-section__title">Échanges</h3>
+        </div>
+        <div class="td-comment-feed">
+          {% for c in ticket.commentaires %}
+          <article class="td-comment-card">
+            <div class="td-comment-card__avatar" aria-hidden="true">{{ c.auteur.prenom[0] }}{{ c.auteur.nom[0] }}</div>
+            <div class="td-comment-card__body">
+              <header class="td-comment-card__meta">
+                <strong>{{ c.auteur.full_name }}</strong>
+                <time datetime="{{ c.date_creation.isoformat() }}">{{ c.date_creation.strftime('%d/%m/%Y %H:%M') }}</time>
+              </header>
+              <div class="td-comment-card__text">{{ c.contenu }}</div>
+            </div>
+          </article>
+          {% else %}
+          <p class="muted td-comment-empty">Pas encore d’échange sur ce ticket.</p>
+          {% endfor %}
+        </div>
+        <form method="post" action="{{ url_for('agent.ajouter_commentaire', public_id=ticket.public_id) }}" class="td-comment-compose">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+          <label class="field">
+            <span class="sr-only">Nouveau message</span>
+            <textarea name="contenu" rows="3" placeholder="Message visible par le demandeur…"></textarea>
+          </label>
+          <button type="submit" class="btn btn-secondary btn-block">Publier le commentaire</button>
+        </form>
+      </section>
+
+      <section class="card td-section td-section--history">
+        <div class="td-section__head td-section__head--compact">
+          <span class="td-section__icon td-section__icon--history" aria-hidden="true">◎</span>
+          <h3 class="td-section__title">Historique</h3>
+        </div>
+        <ul class="td-timeline">
+          {% for h in historique %}
+          <li class="td-timeline__item">
+            <span class="td-timeline__dot"></span>
+            <div class="td-timeline__content">
+              <time class="td-timeline__date js-local-datetime" datetime="{{ h.date_action | utc_iso_datetime }}"></time>
+              <span class="td-timeline__action">{{ h | timeline_event_label }}</span>
+            </div>
+          </li>
+          {% else %}
+          <li class="td-timeline__empty muted">Aucune entrée pour le moment.</li>
+          {% endfor %}
+        </ul>
+      </section>
+    </aside>
+  </div>
 </div>
 {% endblock %}

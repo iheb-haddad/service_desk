@@ -1,5 +1,5 @@
 {% extends "layout/base_app.html" %}
-{% from "_macros.html" import badge_statut, badge_priorite %}
+{% from "_macros.html" import badge_statut, badge_priorite, btn_voir_detail %}
 {% block title %}Tickets assignés{% endblock %}
 {% block heading %}Mes tickets IT{% endblock %}
 {% block content %}
@@ -14,20 +14,22 @@
           <th>Priorité</th>
           <th>Statut</th>
           <th>Créé le</th>
+          <th class="th-actions">Actions</th>
         </tr>
       </thead>
       <tbody>
         {% for t in tickets %}
-        <tr>
-          <td><a href="{{ url_for('agent.detail_ticket', public_id=t.public_id) }}">{{ t.public_id[:8] }}…</a></td>
-          <td>{{ t.titre }}</td>
+        <tr class="data-table-row">
+          <td><span class="ref-code">{{ t.public_id[:8] }}…</span></td>
+          <td class="td-title">{{ t.titre }}</td>
           <td>{{ t.demandeur.full_name }}</td>
           <td>{{ badge_priorite(t.priorite) }}</td>
           <td>{{ badge_statut(t) }}</td>
           <td class="muted">{{ t.date_creation.strftime('%d/%m/%Y %H:%M') }}</td>
+          <td class="td-actions">{{ btn_voir_detail(url_for('agent.detail_ticket', public_id=t.public_id)) }}</td>
         </tr>
         {% else %}
-        <tr><td colspan="6" class="empty">Aucun ticket assigné pour l’instant.</td></tr>
+        <tr><td colspan="7" class="empty">Aucun ticket assigné pour l’instant.</td></tr>
         {% endfor %}
       </tbody>
     </table>

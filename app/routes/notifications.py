@@ -24,8 +24,15 @@ def _lien_pour_notification(n: Notification) -> str:
 @bp.route("/")
 @login_required
 def liste():
+    # Toutes les notifications non lues passent en « lues » à l’ouverture du centre.
+    unread = Notification.query.filter_by(destinataire_id=current_user.id, lue=False)
+    if unread.count():
+        unread.update({Notification.lue: True}, synchronize_session=False)
+        db.session.commit()
+
     items = (
-        Notification.query.filter_by(destinataire_id=current_user.id)
+        Notification.query.options(joinedload(Notification.ticket))
+        .filter_by(destinataire_id=current_user.id)
         .order_by(Notification.date_creation.desc())
         .limit(80)
         .all()

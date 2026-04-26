@@ -24,6 +24,7 @@ from app.models import (
 from app.services.history import log_action
 from app.services.notifications import creer_notification
 from app.services.priority import compute_priority
+from app.services.similarity import apply_ai_suggestion
 from app.utils.files import save_upload
 
 bp = Blueprint("employe", __name__, url_prefix="/employe")
@@ -133,6 +134,11 @@ def nouveau_ticket():
         )
 
         db.session.commit()
+
+        # La suggestion IA est calculée après création persistée du ticket.
+        if apply_ai_suggestion(ticket):
+            db.session.commit()
+
         flash("Ticket créé avec succès.", "success")
         return redirect(url_for("employe.detail_ticket", public_id=ticket.public_id))
 

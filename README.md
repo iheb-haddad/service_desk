@@ -58,10 +58,10 @@ Ouvrir : `http://127.0.0.1:5000`
 
 Comptes de démonstration (après `init_db.py`) :
 
-| Rôle    | E-mail          | Mot de passe |
-|---------|-----------------|--------------|
-| Admin   | admin@bh.tn     | Admin123!    |
-| Employé | employe@bh.tn   | Employe123!  |
-| Agent IT| agent@bh.tn     | Agent123!    |
+| Rôle     | E-mail        | Mot de passe |
+| -------- | ------------- | ------------ |
+| Admin    | admin@bh.tn   | Admin123!    |
+| Employé  | employe@bh.tn | Employe123!  |
+| Agent IT | agent@bh.tn   | Agent123!    |
 
 Les fichiers uploadés sont stockés sous le dossier `uploads/` (créé automatiquement).

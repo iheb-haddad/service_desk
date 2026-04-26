@@ -47,6 +47,14 @@ class NotificationType(str, enum.Enum):
     RESOLUTION = "resolution"
 
 
+class AISuggestionStatus(str, enum.Enum):
+    NONE = "none"
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    EDITED = "edited"
+    REJECTED = "rejected"
+
+
 class User(UserMixin, db.Model):
     __tablename__ = "utilisateurs"
 
@@ -129,11 +137,17 @@ class Ticket(db.Model):
     date_echeance_sla = db.Column(db.DateTime)
     date_resolution = db.Column(db.DateTime)
     escalade_declenchee = db.Column(db.Boolean, default=False, nullable=False)
+    solution = db.Column(db.Text)
+    ai_source_ticket_id = db.Column(db.Integer, db.ForeignKey("tickets.id"), nullable=True)
+    ai_similarity_score = db.Column(db.Float)
+    ai_suggested_solution = db.Column(db.Text)
+    ai_suggestion_status = db.Column(db.Enum(AISuggestionStatus), nullable=False, default=AISuggestionStatus.NONE)
 
     category = db.relationship("Category", back_populates="tickets")
     statut = db.relationship("TicketStatus", back_populates="tickets")
     demandeur = db.relationship("User", foreign_keys=[demandeur_id], back_populates="tickets_crees")
     assignee = db.relationship("User", foreign_keys=[assignee_id], back_populates="tickets_assignes")
+    ai_source_ticket = db.relationship("Ticket", remote_side=[id], foreign_keys=[ai_source_ticket_id], uselist=False)
 
     commentaires = db.relationship(
         "Comment",

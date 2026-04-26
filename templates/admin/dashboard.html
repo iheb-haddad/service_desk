@@ -1,5 +1,5 @@
 {% extends "layout/base_app.html" %}
-{% from "_macros.html" import badge_statut, badge_priorite %}
+{% from "_macros.html" import badge_statut, badge_priorite, btn_voir_detail %}
 {% block title %}Administration{% endblock %}
 {% block heading %}Pilotage Service Desk{% endblock %}
 {% block content %}
@@ -36,16 +36,18 @@
           <th>Demandeur</th>
           <th>Priorité</th>
           <th>Statut</th>
+          <th class="th-actions">Actions</th>
         </tr>
       </thead>
       <tbody>
         {% for t in recents %}
-        <tr>
-          <td><a href="{{ url_for('admin.detail_ticket', public_id=t.public_id) }}">{{ t.public_id[:8] }}…</a></td>
-          <td>{{ t.titre }}</td>
+        <tr class="data-table-row">
+          <td><span class="ref-code">{{ t.public_id[:8] }}…</span></td>
+          <td class="td-title">{{ t.titre }}</td>
           <td>{{ t.demandeur.full_name }}</td>
           <td>{{ badge_priorite(t.priorite) }}</td>
           <td>{{ badge_statut(t) }}</td>
+          <td class="td-actions">{{ btn_voir_detail(url_for('admin.detail_ticket', public_id=t.public_id)) }}</td>
         </tr>
         {% endfor %}
       </tbody>
